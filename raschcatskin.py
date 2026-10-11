@@ -960,6 +960,25 @@ RESULT_TMPL = """
     <div class="stat">CAT stopping rule posterior SE ≤ {{ '%.3f'|format(result.comparison.stop_se) }}</div>
     <div class="stat">Mean CAT length {{ '%.3f'|format(result.comparison.cat_length_summary.mean) }}</div>
     <div class="stat">CAT length SD {{ '%.3f'|format(result.comparison.cat_length_summary.sd) }}</div>
+    {% set threshold_rows = result.comparison.threshold_rows %}
+    <h3>Results Table</h3>
+    <table>
+      <thead><tr><th>SE threshold</th><th>Mean CAT length</th><th>Median (IQR)</th><th>Item reduction</th><th>MAE / RMSE</th><th>CAT-full agreement (CCC)</th></tr></thead>
+      <tbody>{% for row in threshold_rows %}<tr>
+        <td>{{ '%.2f'|format(row.stop_se) }}</td><td>{{ '%.3f'|format(row.mean_length) }}</td>
+        <td>{{ '%.1f'|format(row.median_length) }} ({{ '%.1f'|format(row.q1_length) }}–{{ '%.1f'|format(row.q3_length) }})</td>
+        <td>{{ '%.1f'|format(row.item_reduction_pct) }}%</td>
+        <td>{{ '%.3f'|format(row.mae) }} / {{ '%.3f'|format(row.rmse) }}</td>
+        <td>{% if row.concordance_ccc is not none %}{{ '%.3f'|format(row.concordance_ccc) }}{% else %}N/A{% endif %}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+    <p class="muted">Each row uses the same response pattern and randomized first-item choices. Item reduction = 100 × (1 − mean CAT length / mean full non-CAT length). CCC is Lin's concordance correlation coefficient for absolute agreement of paired theta estimates. It is N/A here because one person's full non-CAT theta is constant across repetitions; these repetitions do not provide independent people for a method-agreement analysis.</p>
+    <h4>Supplementary theta outcomes</h4>
+    <table><thead><tr><th>SE threshold</th><th>Pearson r</th><th>Mean bias (CAT − full)</th><th>95% limits of agreement</th><th>Lower-tertile MAE</th><th>Middle-tertile MAE</th><th>Upper-tertile MAE</th></tr></thead>
+      <tbody>{% for row in threshold_rows %}<tr><td>{{ '%.2f'|format(row.stop_se) }}</td><td>N/A</td><td>{{ '%+.3f'|format(row.mean_bias) }}</td><td>N/A</td>
+        {% for stratum in row.ability_strata %}<td>{% if stratum is not none %}{{ '%.3f'|format(stratum.mae) }} (n={{ stratum.n }}){% else %}N/A{% endif %}</td>{% endfor %}
+      </tr>{% endfor %}</tbody>
+    </table>
 
     <h3>Table 1. Item length</h3>
     <table>
@@ -1053,6 +1072,29 @@ RESULT_TMPL = """
     <div class="stat">CAT stopping rule posterior SE ≤ {{ '%.3f'|format(result.comparison_n.stop_se) }}</div>
     <div class="stat">Mean full non-CAT length {{ '%.3f'|format(result.comparison_n.full_summary.mean_length) }}</div>
     <div class="stat">Mean CAT length {{ '%.3f'|format(result.comparison_n.cat_length_summary.mean) }}</div>
+    {% set threshold_rows = result.comparison_n.threshold_rows %}
+    <h3>Results Table</h3>
+    <table>
+      <thead><tr><th>SE threshold</th><th>Mean CAT length</th><th>Median (IQR)</th><th>Item reduction</th><th>MAE / RMSE</th><th>CAT-full agreement (CCC)</th></tr></thead>
+      <tbody>{% for row in threshold_rows %}<tr>
+        <td>{{ '%.2f'|format(row.stop_se) }}</td><td>{{ '%.3f'|format(row.mean_length) }}</td>
+        <td>{{ '%.1f'|format(row.median_length) }} ({{ '%.1f'|format(row.q1_length) }}–{{ '%.1f'|format(row.q3_length) }})</td>
+        <td>{{ '%.1f'|format(row.item_reduction_pct) }}%</td>
+        <td>{{ '%.3f'|format(row.mae) }} / {{ '%.3f'|format(row.rmse) }}</td>
+        <td>{% if row.concordance_ccc is not none %}{{ '%.3f'|format(row.concordance_ccc) }}{% else %}N/A{% endif %}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+    <p class="muted">The same selected persons and randomized first-item choices are used at all three thresholds. Item reduction = 100 × (1 − mean CAT length / mean full non-CAT length). CCC is Lin's concordance correlation coefficient, which assesses absolute agreement of paired CAT and full non-CAT theta estimates. Pearson r is shown separately below as an association measure.</p>
+    <h4>Supplementary theta outcomes</h4>
+    <table><thead><tr><th>SE threshold</th><th>Pearson r</th><th>Mean bias (CAT − full)</th><th>95% limits of agreement</th><th>Lower-tertile MAE</th><th>Middle-tertile MAE</th><th>Upper-tertile MAE</th></tr></thead>
+      <tbody>{% for row in threshold_rows %}<tr><td>{{ '%.2f'|format(row.stop_se) }}</td>
+        <td>{% if row.theta_correlation is not none %}{{ '%.3f'|format(row.theta_correlation) }}{% else %}N/A{% endif %}</td>
+        <td>{{ '%+.3f'|format(row.mean_bias) }}</td>
+        <td>{% if row.loa_low is not none %}{{ '%+.3f'|format(row.loa_low) }} to {{ '%+.3f'|format(row.loa_high) }}{% else %}N/A{% endif %}</td>
+        {% for stratum in row.ability_strata %}<td>{% if stratum is not none %}{{ '%.3f'|format(stratum.mae) }} (n={{ stratum.n }}){% else %}N/A{% endif %}</td>{% endfor %}
+      </tr>{% endfor %}</tbody>
+    </table>
+    <p class="muted">The 95% Bland–Altman limits of agreement are mean paired difference ± 1.96 × sample SD of paired differences. They describe the expected range of CAT − full theta differences under an approximately normal difference distribution; acceptability requires a prespecified theta tolerance. Ability strata are thirds ranked by full non-CAT theta; each outcome is paired theta MAE.</p>
 
     <h3>Table 1. Item length</h3>
     <table>
@@ -2024,6 +2066,72 @@ def _box_stats(values: List[float]) -> Optional[dict]:
     return {'min': float(np.min(arr)), 'q1': float(np.percentile(arr, 25)), 'med': float(np.percentile(arr, 50)), 'q3': float(np.percentile(arr, 75)), 'max': float(np.max(arr)), 'mean': float(np.mean(arr))}
 
 
+def _comparison_threshold_runs(score_maps: List[Dict[str, int]], full_lengths: List[float],
+                               full_thetas: List[float], first_item_seeds: List[int],
+                               start_theta: float, selected_stop_se: float) -> dict:
+    """Reevaluate paired response patterns at fixed SE thresholds with matched first items."""
+    if not (len(score_maps) == len(full_lengths) == len(full_thetas) == len(first_item_seeds)) or not score_maps:
+        raise ValueError('Comparison inputs must be nonempty paired lists')
+    thresholds = list(dict.fromkeys((0.25, 0.32, 0.40, selected_stop_se)))
+    full_arr = np.asarray(full_thetas, dtype=float)
+    results = {}
+    for threshold in thresholds:
+        cat_runs = [
+            _run_cat_with_fixed_map(score_map, start_theta, threshold, int(full_length),
+                                    random.Random(seed), random_first=True)
+            for score_map, full_length, seed in zip(score_maps, full_lengths, first_item_seeds)
+        ]
+        lengths = np.asarray([float(run['length']) for run in cat_runs], dtype=float)
+        cat_arr = np.asarray([float(run['theta']) for run in cat_runs], dtype=float)
+        errors = cat_arr - full_arr
+        correlation = None
+        concordance_ccc = None
+        loa_low = None
+        loa_high = None
+        if len(cat_arr) >= 2 and np.std(full_arr) > 1e-12:
+            if np.std(cat_arr) > 1e-12:
+                correlation = float(np.corrcoef(cat_arr, full_arr)[0, 1])
+            cat_centered = cat_arr - float(np.mean(cat_arr))
+            full_centered = full_arr - float(np.mean(full_arr))
+            covariance = float(np.mean(cat_centered * full_centered))
+            ccc_denominator = float(np.mean(cat_centered ** 2) + np.mean(full_centered ** 2)
+                                    + (np.mean(cat_arr) - np.mean(full_arr)) ** 2)
+            if ccc_denominator > 1e-12:
+                concordance_ccc = 2.0 * covariance / ccc_denominator
+            difference_sd = float(np.std(errors, ddof=1))
+            loa_low = float(np.mean(errors) - 1.96 * difference_sd)
+            loa_high = float(np.mean(errors) + 1.96 * difference_sd)
+        strata = [None, None, None]
+        if len(full_arr) >= 3 and np.std(full_arr) > 1e-12:
+            groups = np.array_split(np.argsort(full_arr, kind='stable'), 3)
+            strata = [
+                {'n': int(len(group)), 'mae': float(np.mean(np.abs(errors[group])))} if len(group) else None
+                for group in groups
+            ]
+        stats = _box_stats(lengths.tolist())
+        results[threshold] = {
+            'lengths': lengths.tolist(),
+            'cat_thetas': cat_arr.tolist(),
+            'row': {
+                'stop_se': float(threshold),
+                'mean_length': float(np.mean(lengths)),
+                'median_length': stats['med'],
+                'q1_length': stats['q1'],
+                'q3_length': stats['q3'],
+                'item_reduction_pct': 100.0 * (1.0 - float(np.mean(lengths)) / float(np.mean(full_lengths))),
+                'mae': float(np.mean(np.abs(errors))),
+                'rmse': float(np.sqrt(np.mean(errors ** 2))),
+                'theta_correlation': correlation,
+                'concordance_ccc': concordance_ccc,
+                'mean_bias': float(np.mean(errors)),
+                'loa_low': loa_low,
+                'loa_high': loa_high,
+                'ability_strata': strata,
+            },
+        }
+    return results
+
+
 def _draw_boxplot(parts: List[str], x: float, stats: dict, ymap, color: str, stroke: str, box_w: float = 70.0, show_points: Optional[List[float]] = None):
     q1, med, q3 = stats['q1'], stats['med'], stats['q3']
     vmin, vmax = stats['min'], stats['max']
@@ -2307,12 +2415,12 @@ def build_cat_noncat_comparison(state: dict) -> Optional[dict]:
         return None
     full_theta = float(full_run['theta'])
     rng = random.Random(20260328 + max(0, int(person_info.get('row_index', 0))))
-    cat_lengths: List[float] = []
-    cat_thetas: List[float] = []
-    for _ in range(n_reps):
-        cat_run = _run_cat_with_fixed_map(score_map, start_theta, stop_se, full_length, rng, random_first=True)
-        cat_lengths.append(float(cat_run['length']))
-        cat_thetas.append(float(cat_run['theta']))
+    threshold_runs = _comparison_threshold_runs(
+        [score_map] * n_reps, [float(full_length)] * n_reps, [full_theta] * n_reps,
+        [rng.getrandbits(64) for _ in range(n_reps)], start_theta, stop_se,
+    )
+    cat_lengths = threshold_runs[stop_se]['lengths']
+    cat_thetas = threshold_runs[stop_se]['cat_thetas']
     history = list(state.get('history', []))
     actual_rows = [{'pos': idx, 'item_id': row.get('item_id', ''), 'no': row.get('no', ''), 'delta': float(row.get('delta', 0.0)), 'link_href': row.get('link_href', '')} for idx, row in enumerate(history, start=1)]
     full_length_stats = {'min': float(full_length), 'q1': float(full_length), 'med': float(full_length), 'q3': float(full_length), 'max': float(full_length), 'mean': float(full_length)}
@@ -2326,6 +2434,7 @@ def build_cat_noncat_comparison(state: dict) -> Optional[dict]:
         'n_reps': n_reps,
         'full_length': full_length,
         'stop_se': float(stop_se),
+        'threshold_rows': [threshold_runs[t]['row'] for t in (0.25, 0.32, 0.40)],
         'full_summary': {'n': 1, 'mean_length': float(full_length), 'sd_length': 0.0},
         'full_theta_summary': summarize_mean_sd(full_theta_single),
         'cat_length_summary': summarize_mean_sd(cat_lengths),
@@ -2357,6 +2466,8 @@ def build_cat_noncat_n_comparison(state: dict) -> Optional[dict]:
     full_thetas: List[float] = []
     cat_lengths: List[float] = []
     cat_thetas: List[float] = []
+    score_maps: List[Dict[str, int]] = []
+    first_item_seeds: List[int] = []
     selected_ids: List[str] = []
     for idx, person_info in enumerate(person_infos):
         score_map = dict(person_info.get('score_map', {}) or {})
@@ -2364,15 +2475,16 @@ def build_cat_noncat_n_comparison(state: dict) -> Optional[dict]:
             continue
         selected_ids.append(str(person_info.get('person_id', f'p{idx+1}')))
         full_run = _run_full_noncat_with_fixed_map(score_map, start_theta)
+        score_maps.append(score_map)
         full_lengths.append(float(full_run['length']))
         full_thetas.append(float(full_run['theta']))
-        cap = max(1, int(full_run['length']))
-        rng = random.Random(20260329 + int(person_info.get('row_index', idx)) + idx * 7919)
-        cat_run = _run_cat_with_fixed_map(score_map, start_theta, stop_se, cap, rng, random_first=True)
-        cat_lengths.append(float(cat_run['length']))
-        cat_thetas.append(float(cat_run['theta']))
-    if not cat_lengths or not full_lengths:
+        first_item_seeds.append(20260329 + int(person_info.get('row_index', idx)) + idx * 7919)
+    if not full_lengths:
         return None
+    threshold_runs = _comparison_threshold_runs(score_maps, full_lengths, full_thetas,
+                                                first_item_seeds, start_theta, stop_se)
+    cat_lengths = threshold_runs[stop_se]['lengths']
+    cat_thetas = threshold_runs[stop_se]['cat_thetas']
     full_len_summary = summarize_mean_sd(full_lengths)
     cat_len_summary = summarize_mean_sd(cat_lengths)
     full_theta_summary = summarize_mean_sd(full_thetas)
@@ -2384,6 +2496,7 @@ def build_cat_noncat_n_comparison(state: dict) -> Optional[dict]:
         'selected_person_ids': selected_ids,
         'selected_person_preview': ', '.join(selected_ids[:8]) + (' ...' if len(selected_ids) > 8 else ''),
         'stop_se': float(stop_se),
+        'threshold_rows': [threshold_runs[t]['row'] for t in (0.25, 0.32, 0.40)],
         'full_summary': {
             'n': int(len(full_lengths)),
             'mean_length': float(full_len_summary['mean']),
